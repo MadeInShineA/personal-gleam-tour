@@ -3,6 +3,9 @@ version = "1.0.0"
 target = "javascript"
 licences = ["Apache-2.0"]
 
+[javascript]
+runtime = "bun"
+
 [dependencies]
 gleam_stdlib = "~> 0.35"
 simplifile = ">= 2.0.0 and < 3.0.0"

@@ -12,14 +12,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: erlef/setup-beam@v1
-        with:
-          otp-version: false
-          # When changing the version be sure to search the codebase for all other
-          # instances of the version and update those too.
-          gleam-version: "1.17.0"
-      - run: ./bin/download-compiler
-      - run: gleam deps download
-      - run: gleam format --check src test
-      - run: gleam test
-      - run: gleam run
+      - uses: cachix/install-nix-action@v30
+      - run: nix develop --command bash -c "./bin/download-compiler && gleam deps download && gleam format --check src test && gleam test && gleam run"

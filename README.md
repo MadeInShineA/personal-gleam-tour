@@ -27,11 +27,11 @@ Install the following dependencies:
 
 - [Gleam](https://gleam.run/getting-started/installing/)
 - [Erlang](https://www.erlang.org/downloads)
-- [NodeJS](https://nodejs.org/)
+- [Bun](https://bun.sh/)
 
 ## Build and Run
 
-A JavaScript runtime is required to run this program. NodeJS is used by default.
+A JavaScript runtime is required to run this program. Bun is used by default.
 
 ```sh
 # Download a wasm version of the Gleam compiler (only needed once)

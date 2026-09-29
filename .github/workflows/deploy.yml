@@ -24,21 +24,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - uses: erlef/setup-beam@v1
-        with:
-          otp-version: false
-          # When changing the version be sure to search the codebase for all other
-          # instances of the version and update those too.
-          gleam-version: "1.17.0"
+      - uses: cachix/install-nix-action@v30
 
-      - name: Download WASM version of Gleam compiler
-        run: ./bin/download-compiler
-      - name: Build site
-        run: gleam run
+      - name: Download WASM version of Gleam compiler and build site
+        run: nix develop --command bash -c "./bin/download-compiler && gleam run"
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
