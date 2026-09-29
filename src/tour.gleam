@@ -56,13 +56,13 @@ const home_html = "
 </p>
 <p>
   The tour is interactive! The code shown is editable and will be compiled and
-  evaluated as you type. Anything you print using 
+  evaluated as you type. Anything you print using
   <a href=\"https://hexdocs.pm/gleam_stdlib/gleam/io.html#print\" target=\"_blank\">
     <code>io.println</code>
-  </a> 
+  </a>
   or <code>echo</code> will be shown in the bottom section, along with any compile
-  errors and warnings. 
-  To evaluate Gleam code the tour compiles Gleam to JavaScript and runs it, 
+  errors and warnings.
+  To evaluate Gleam code the tour compiles Gleam to JavaScript and runs it,
   all entirely within your browser window.
 </p>
 <p>

@@ -26,6 +26,8 @@
             beamPackages.erlang
             beamPackages.rebar3
             bun
+
+            watchexec
           ];
         };
       }

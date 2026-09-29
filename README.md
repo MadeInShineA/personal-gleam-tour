@@ -44,3 +44,19 @@ gleam run
 Then open http://localhost:8000/ in your browser.
 
 > **Note:** A local HTTP server is required because browsers block ES modules on `file://` protocol for security reasons.
+
+## Development with Live Reload
+
+For automatic page reloads when editing Gleam files, use [watchexec](https://github.com/watchexec/watchexec) (included in the Nix flake):
+
+```sh
+watchexec --restart -e gleam -- gleam run
+```
+
+Page reload is enabled only when the server is started by watchexec. Saving a `.gleam` file restarts the process, and the page reloads when the server comes back. This works by:
+
+1. Injecting a small script into HTML pages that maintains an SSE (Server-Sent Events) connection
+2. When the server restarts, the connection drops
+3. The script polls until the server is back, then reloads the page
+
+The server also sets no-cache headers to prevent browser caching issues during development.
