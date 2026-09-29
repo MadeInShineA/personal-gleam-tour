@@ -136,13 +136,19 @@ pub fn main() {
   case result {
     Ok(_) -> {
       io.println("Site compiled to ./public 🎉")
-      start_server()
+      case is_ci() {
+        True -> Nil
+        False -> start_server()
+      }
     }
     Error(snag) -> {
       panic as snag.pretty_print(snag)
     }
   }
 }
+
+@external(javascript, "./tour_ffi.mjs", "isCI")
+fn is_ci() -> Bool
 
 @external(javascript, "./tour_ffi.mjs", "startServer")
 fn start_server() -> Nil

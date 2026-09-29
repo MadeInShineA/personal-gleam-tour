@@ -18,6 +18,10 @@ const MIME_TYPES = {
   ".ico": "image/x-icon",
 };
 
+export function isCI() {
+  return !!process.env.CI;
+}
+
 export function startServer() {
   const server = createServer(async (req, res) => {
     let urlPath = req.url.split("?")[0];
