@@ -1,0 +1,13 @@
+#!/bin/sh
+
+set -eu
+
+# When changing the version be sure to search the codebase for all other
+# instances of the version and update those too.
+VERSION="v1.17.0"
+
+rm -fr wasm-compiler
+mkdir wasm-compiler
+cd wasm-compiler
+curl -L "https://github.com/gleam-lang/gleam/releases/download/$VERSION/gleam-$VERSION-browser.tar.gz" | tar xz
+cd ..
