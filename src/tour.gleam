@@ -73,7 +73,7 @@ const home_html = "
 </p>
 <p>
   OK, let's go. Click \"Next\" to get started, click \"Contents\" to jump to a
-  specific topic, or go <a href=\"/everything\">here</a> to read everything in
+  specific topic, or go <a href=\"everything\">here</a> to read everything in
   one page.
 </p>
 "
@@ -109,6 +109,8 @@ const what_next_html = "
 
 // page paths
 
+const base_path = "/personal-gleam-tour"
+
 const path_home = "/"
 
 const path_table_of_contents = "/table-of-contents"
@@ -116,6 +118,10 @@ const path_table_of_contents = "/table-of-contents"
 const path_what_next = "/what-next"
 
 const path_everything = "/everything"
+
+fn with_base(path: String) -> String {
+  base_path <> path
+}
 
 // Don't include deprecated stdlib modules
 const skipped_stdlib_modules = [
@@ -276,7 +282,7 @@ fn contents_list_html(chapters: List(Chapter)) -> String {
           [],
           list.map(chapter.lessons, fn(lesson) {
             h("li", [], [
-              h("a", [#("href", lesson.path)], [
+              h("a", [#("href", with_base(lesson.path))], [
                 lesson.name
                 |> string.replace("-", " ")
                 |> string.capitalise
@@ -291,13 +297,15 @@ fn contents_list_html(chapters: List(Chapter)) -> String {
   [
     h("p", [], [
       text("Looking for all the content on one page? "),
-      h("a", [#("href", path_everything)], [text("Find it here")]),
+      h("a", [#("href", with_base(path_everything))], [text("Find it here")]),
       text("!"),
     ]),
     ..chapters
   ]
   |> list.append([
-    h("p", [], [h("a", [#("href", path_what_next)], [text("What's next…?")])]),
+    h("p", [], [
+      h("a", [#("href", with_base(path_what_next))], [text("What's next…?")]),
+    ]),
   ])
   |> list.map(render_html)
   |> string.join("\n")
@@ -553,16 +561,16 @@ fn file_error(
 
 // Shared stylesheets paths
 
-const css__gleam_common = "/common.css"
+const css__gleam_common = "common.css"
 
 /// Loads fonts and defines font sizes
-const css_fonts = "/css/fonts.css"
+const css_fonts = "css/fonts.css"
 
 /// Derives app colors for both dark & light themes from common.css variables
-const css_theme = "/css/theme.css"
+const css_theme = "css/theme.css"
 
 /// Defines layout unit variables
-const css_layout = "/css/layout.css"
+const css_layout = "css/layout.css"
 
 /// Sensitive defaults for any page
 const css_defaults_page = [css_fonts, css_theme, css__gleam_common, css_layout]
@@ -570,23 +578,23 @@ const css_defaults_page = [css_fonts, css_theme, css__gleam_common, css_layout]
 // Page stylesheet paths
 
 /// Common stylesheet for all tour pages
-const css_root = "/css/root.css"
+const css_root = "css/root.css"
 
 // Path to the css specific to the everything page
-const css_everything_page = "/css/pages/everything.css"
+const css_everything_page = "css/pages/everything.css"
 
 // Path to the css speciic to to lesson & main pages
-const css_lesson_page = "/css/pages/lesson.css"
+const css_lesson_page = "css/pages/lesson.css"
 
 // Defines code syntax highlighting for highlightJS & CodeFlash
 // based on dark / light mode and the currenly loaded color scheme
-const css_syntax_highlight = "/css/code/syntax-highlight.css"
+const css_syntax_highlight = "css/code/syntax-highlight.css"
 
 // Color schemes
 // TODO: add more color schemes
 
 /// Atom One Dark & Atom One Light colors
-const css_scheme_atom_one = "/css/code/color-schemes/atom-one.css"
+const css_scheme_atom_one = "css/code/color-schemes/atom-one.css"
 
 /// Sensitive defaults for any page needing to display Gleam code
 /// To be used alonside defaults_page
@@ -650,7 +658,7 @@ fn lesson_page_render(lesson: Lesson) -> String {
   let navlink = fn(name, link) {
     case link {
       None -> h("span", [], [text(name)])
-      Some(path) -> h("a", [#("href", path)], [text(name)])
+      Some(path) -> h("a", [#("href", with_base(path))], [text(name)])
     }
   }
 
@@ -675,7 +683,9 @@ fn lesson_page_render(lesson: Lesson) -> String {
           h("nav", [#("class", "prev-next")], [
             navlink("Back", lesson.previous),
             text(" — "),
-            h("a", [#("href", path_table_of_contents)], [text("Contents")]),
+            h("a", [#("href", with_base(path_table_of_contents))], [
+              text("Contents"),
+            ]),
             text(" — "),
             navlink("Next", lesson.next),
           ]),
@@ -695,7 +705,7 @@ fn lesson_page_render(lesson: Lesson) -> String {
         h("script", [#("type", "gleam"), #("id", "code")], [
           htmb.dangerous_unescaped_fragment(string_tree.from_string(lesson.code)),
         ]),
-        html_script("/index.js", ScriptOptions(module: True, defer: False), []),
+        html_script("index.js", ScriptOptions(module: True, defer: False), []),
       ],
       head: [],
     ),
@@ -724,7 +734,7 @@ fn everything_page_lesson_html(lesson: Lesson, index: Int, end_index: Int) {
           "a",
           [
             #("class", "lesson-snippet-link"),
-            #("href", lesson.path),
+            #("href", with_base(lesson.path)),
             #("title", snippet_link_title),
             #("aria-label", snippet_link_title),
           ],
@@ -820,12 +830,12 @@ pub fn everything_page_render(chapters: List(Chapter)) -> String {
     scripts: ScriptConfig(
       head: [
         html_script(
-          "/js/highlight/highlight.core.min.js",
+          "js/highlight/highlight.core.min.js",
           ScriptOptions(module: True, defer: False),
           [],
         ),
         html_script(
-          "/js/highlight/regexes.js",
+          "js/highlight/regexes.js",
           ScriptOptions(module: True, defer: True),
           [],
         ),
@@ -833,7 +843,7 @@ pub fn everything_page_render(chapters: List(Chapter)) -> String {
       body: [
         theme_picker_script(),
         html_script(
-          "/js/highlight/highlight-gleam.js",
+          "js/highlight/highlight-gleam.js",
           ScriptOptions(module: True, defer: True),
           [],
         ),
@@ -1029,9 +1039,9 @@ pub fn render_page_html(page config: PageConfig) -> Html {
   html(HtmlConfig(
     head: HeadConfig(
       description: "An interactive introduction and reference to the Gleam programming language.",
-      image: "https://tour.gleam.run/share-preview.png",
+      image: "https://olivier.amacker.dev/personal-gleam-tour/share-preview.png",
       title: config.title <> " - The Gleam Language Tour",
-      url: "https://tour.gleam.run/" <> config.path,
+      url: "https://olivier.amacker.dev/personal-gleam-tour" <> config.path,
       path: config.path,
       meta: [],
       stylesheets: config.stylesheets,
