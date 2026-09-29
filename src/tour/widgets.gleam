@@ -185,13 +185,17 @@ pub fn text_link(
 }
 
 /// Renders the tour's navbar as html
-pub fn navbar(titled title: String, links links: List(Link)) -> Html {
+pub fn navbar(
+  titled title: String,
+  links links: List(Link),
+  home_path home_path: String,
+) -> Html {
   let links = list.map(links, fn(l) { text_link(l, []) })
 
   let nav_right_items = list.flatten([links, [theme_picker()]])
 
   h("nav", [#("class", "navbar")], [
-    anchor("/", [#("class", "logo")], [
+    anchor(home_path, [#("class", "logo")], [
       h(
         "img",
         [

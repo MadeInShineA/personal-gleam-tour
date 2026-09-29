@@ -73,7 +73,7 @@ const home_html = "
 </p>
 <p>
   OK, let's go. Click \"Next\" to get started, click \"Contents\" to jump to a
-  specific topic, or go <a href=\"everything\">here</a> to read everything in
+  specific topic, or go <a href=\"everything/\">here</a> to read everything in
   one page.
 </p>
 "
@@ -109,8 +109,6 @@ const what_next_html = "
 
 // page paths
 
-const base_path = "/personal-gleam-tour"
-
 const path_home = "/"
 
 const path_table_of_contents = "/table-of-contents"
@@ -118,10 +116,6 @@ const path_table_of_contents = "/table-of-contents"
 const path_what_next = "/what-next"
 
 const path_everything = "/everything"
-
-fn with_base(path: String) -> String {
-  base_path <> path
-}
 
 // Don't include deprecated stdlib modules
 const skipped_stdlib_modules = [
@@ -142,12 +136,16 @@ pub fn main() {
   case result {
     Ok(_) -> {
       io.println("Site compiled to ./public 🎉")
+      start_server()
     }
     Error(snag) -> {
       panic as snag.pretty_print(snag)
     }
   }
 }
+
+@external(javascript, "./tour_ffi.mjs", "startServer")
+fn start_server() -> Nil
 
 pub type Chapter {
   Chapter(name: String, path: String, lessons: List(Lesson))
@@ -258,7 +256,10 @@ fn write_content(chapters: List(Chapter)) -> snag.Result(Nil) {
   use _ <- result.try(
     write_lesson(Lesson(
       name: "Table of Contents",
-      text: contents_list_html(chapters),
+      text: contents_list_html(
+        chapters,
+        relative_prefix(path_table_of_contents),
+      ),
       code: hello_joe,
       path: path_table_of_contents,
       previous: None,
@@ -272,7 +273,7 @@ fn write_content(chapters: List(Chapter)) -> snag.Result(Nil) {
   Ok(Nil)
 }
 
-fn contents_list_html(chapters: List(Chapter)) -> String {
+fn contents_list_html(chapters: List(Chapter), prefix: String) -> String {
   let chapters =
     list.flat_map(chapters, fn(chapter) {
       [
@@ -282,7 +283,7 @@ fn contents_list_html(chapters: List(Chapter)) -> String {
           [],
           list.map(chapter.lessons, fn(lesson) {
             h("li", [], [
-              h("a", [#("href", with_base(lesson.path))], [
+              h("a", [#("href", prefix <> string.drop_start(lesson.path, 1))], [
                 lesson.name
                 |> string.replace("-", " ")
                 |> string.capitalise
@@ -297,14 +298,18 @@ fn contents_list_html(chapters: List(Chapter)) -> String {
   [
     h("p", [], [
       text("Looking for all the content on one page? "),
-      h("a", [#("href", with_base(path_everything))], [text("Find it here")]),
+      h("a", [#("href", prefix <> string.drop_start(path_everything, 1))], [
+        text("Find it here"),
+      ]),
       text("!"),
     ]),
     ..chapters
   ]
   |> list.append([
     h("p", [], [
-      h("a", [#("href", with_base(path_what_next))], [text("What's next…?")]),
+      h("a", [#("href", prefix <> string.drop_start(path_what_next, 1))], [
+        text("What's next…?"),
+      ]),
     ]),
   ])
   |> list.map(render_html)
@@ -587,7 +592,7 @@ const css_everything_page = "css/pages/everything.css"
 const css_lesson_page = "css/pages/lesson.css"
 
 // Defines code syntax highlighting for highlightJS & CodeFlash
-// based on dark / light mode and the currenly loaded color scheme
+// based on dark & light mode and the currenly loaded color scheme
 const css_syntax_highlight = "css/code/syntax-highlight.css"
 
 // Color schemes
@@ -600,13 +605,41 @@ const css_scheme_atom_one = "css/code/color-schemes/atom-one.css"
 /// To be used alonside defaults_page
 const css_defaults_code = [css_syntax_highlight, css_scheme_atom_one]
 
+/// Computes the relative path prefix based on page depth
+/// e.g., "/" -> "./", "/basics/hello-world" -> "../../"
+fn relative_prefix(path: String) -> String {
+  let segments = path |> string.split("/") |> list.filter(fn(s) { s != "" })
+  let depth = list.length(segments)
+  case depth {
+    0 -> "./"
+    n -> list.repeat("../", n) |> string.concat
+  }
+}
+
+/// Makes a relative asset path from a page path
+fn asset_path(page_path: String, asset: String) -> String {
+  relative_prefix(page_path) <> asset
+}
+
+/// Makes all stylesheet paths relative to the given page path
+fn make_relative_stylesheets(
+  page_path: String,
+  stylesheets: List(String),
+) -> List(String) {
+  list.map(stylesheets, asset_path(page_path, _))
+}
+
 // Common page HTML elements renders
 
 /// Renders the navbar with common links
-fn render_navbar() -> Html {
-  widgets.navbar(titled: "Gleam Language Tour", links: [
-    Link(label: "gleam.run", to: "http://gleam.run"),
-  ])
+fn render_navbar(home_path: String) -> Html {
+  widgets.navbar(
+    titled: "Gleam Language Tour",
+    links: [
+      Link(label: "gleam.run", to: "https://gleam.run"),
+    ],
+    home_path: home_path,
+  )
 }
 
 /// Renders the script that that contains the code
@@ -622,11 +655,16 @@ pub fn theme_picker_script() -> Html {
 pub fn arrow_keys_navigation_script(
   next: Option(String),
   prev: Option(String),
+  prefix: String,
 ) -> Html {
   let to_handler = fn(maybe_link) {
     case maybe_link {
       None -> "null"
-      Some(link) -> "() => { window.location.href = '" <> link <> "' }"
+      Some(link) ->
+        "() => { window.location.href = '"
+        <> prefix
+        <> string.drop_start(link, 1)
+        <> "' }"
     }
   }
 
@@ -655,22 +693,27 @@ pub fn arrow_keys_navigation_script(
 /// Renders a Lesson's page
 /// Complete with title, lesson, editor and output
 fn lesson_page_render(lesson: Lesson) -> String {
+  let prefix = relative_prefix(lesson.path)
   let navlink = fn(name, link) {
     case link {
       None -> h("span", [], [text(name)])
-      Some(path) -> h("a", [#("href", with_base(path))], [text(name)])
+      Some(path) ->
+        h("a", [#("href", prefix <> string.drop_start(path, 1))], [text(name)])
     }
   }
 
   render_page(PageConfig(
     path: lesson.path,
     title: lesson.name,
-    stylesheets: list.flatten([
-      css_defaults_page,
-      css_defaults_code,
-      [css_root, css_lesson_page],
-    ]),
-    static_content: [render_navbar()],
+    stylesheets: make_relative_stylesheets(
+      lesson.path,
+      list.flatten([
+        css_defaults_page,
+        css_defaults_code,
+        [css_root, css_lesson_page],
+      ]),
+    ),
+    static_content: [render_navbar(prefix)],
     content: [
       h("article", [#("id", "playground")], [
         h("section", [#("id", "left"), #("class", "content-nav")], [
@@ -683,9 +726,18 @@ fn lesson_page_render(lesson: Lesson) -> String {
           h("nav", [#("class", "prev-next")], [
             navlink("Back", lesson.previous),
             text(" — "),
-            h("a", [#("href", with_base(path_table_of_contents))], [
-              text("Contents"),
-            ]),
+            h(
+              "a",
+              [
+                #(
+                  "href",
+                  prefix <> string.drop_start(path_table_of_contents, 1),
+                ),
+              ],
+              [
+                text("Contents"),
+              ],
+            ),
             text(" — "),
             navlink("Next", lesson.next),
           ]),
@@ -701,11 +753,20 @@ fn lesson_page_render(lesson: Lesson) -> String {
     scripts: ScriptConfig(
       body: [
         theme_picker_script(),
-        arrow_keys_navigation_script(lesson.next, lesson.previous),
+        arrow_keys_navigation_script(lesson.next, lesson.previous, prefix),
         h("script", [#("type", "gleam"), #("id", "code")], [
           htmb.dangerous_unescaped_fragment(string_tree.from_string(lesson.code)),
         ]),
-        html_script("index.js", ScriptOptions(module: True, defer: False), []),
+        h("script", [], [
+          htmb.dangerous_unescaped_fragment(string_tree.from_string(
+            "window.__TOUR_PREFIX__ = '" <> prefix <> "';",
+          )),
+        ]),
+        html_script(
+          asset_path(lesson.path, "index.js"),
+          ScriptOptions(module: True, defer: False),
+          [],
+        ),
       ],
       head: [],
     ),
@@ -719,7 +780,12 @@ fn slugify_path(path: String) -> String {
 }
 
 /// Renders a lesson item in the everyting page's list
-fn everything_page_lesson_html(lesson: Lesson, index: Int, end_index: Int) {
+fn everything_page_lesson_html(
+  lesson: Lesson,
+  index: Int,
+  end_index: Int,
+  prefix: String,
+) {
   let snippet_link_title = "Experiment with " <> lesson.name <> " in browser"
 
   let lesson_content =
@@ -734,7 +800,7 @@ fn everything_page_lesson_html(lesson: Lesson, index: Int, end_index: Int) {
           "a",
           [
             #("class", "lesson-snippet-link"),
-            #("href", with_base(lesson.path)),
+            #("href", prefix <> string.drop_start(lesson.path, 1)),
             #("title", snippet_link_title),
             #("aria-label", snippet_link_title),
           ],
@@ -753,7 +819,10 @@ fn everything_page_lesson_html(lesson: Lesson, index: Int, end_index: Int) {
 }
 
 /// Renders a list containing all chapters and their lessons
-fn everything_page_chapters_html(chapters: List(Chapter)) -> List(Html) {
+fn everything_page_chapters_html(
+  chapters: List(Chapter),
+  prefix: String,
+) -> List(Html) {
   use #(chapter, index) <- list.flat_map(
     list.index_map(chapters, fn(chap, i) { #(chap, i) }),
   )
@@ -764,6 +833,7 @@ fn everything_page_chapters_html(chapters: List(Chapter)) -> List(Html) {
         lesson,
         index,
         list.length(chapter.lessons) - 1,
+        prefix,
       )
     })
   let chapter_title =
@@ -805,8 +875,8 @@ fn everything_page_toc_html(chapters: List(Chapter)) -> List(Html) {
 }
 
 /// Renders the /everything's page body content
-fn everything_page_html(chapters: List(Chapter)) -> Html {
-  let chapter_lessons = everything_page_chapters_html(chapters)
+fn everything_page_html(chapters: List(Chapter), prefix: String) -> Html {
+  let chapter_lessons = everything_page_chapters_html(chapters, prefix)
   let table_of_contents = everything_page_toc_html(chapters)
 
   h("main", [#("id", "everything")], [
@@ -817,25 +887,29 @@ fn everything_page_html(chapters: List(Chapter)) -> Html {
 
 /// Renders the /everything page to a string
 pub fn everything_page_render(chapters: List(Chapter)) -> String {
+  let prefix = relative_prefix(path_everything)
   render_page(PageConfig(
     path: path_everything,
     title: "Everything!",
-    stylesheets: list.flatten([
-      css_defaults_page,
-      css_defaults_code,
-      [css_root, css_everything_page],
-    ]),
-    static_content: [render_navbar()],
-    content: [everything_page_html(chapters)],
+    stylesheets: make_relative_stylesheets(
+      path_everything,
+      list.flatten([
+        css_defaults_page,
+        css_defaults_code,
+        [css_root, css_everything_page],
+      ]),
+    ),
+    static_content: [render_navbar(prefix)],
+    content: [everything_page_html(chapters, prefix)],
     scripts: ScriptConfig(
       head: [
         html_script(
-          "js/highlight/highlight.core.min.js",
+          prefix <> "js/highlight/highlight.core.min.js",
           ScriptOptions(module: True, defer: False),
           [],
         ),
         html_script(
-          "js/highlight/regexes.js",
+          prefix <> "js/highlight/regexes.js",
           ScriptOptions(module: True, defer: True),
           [],
         ),
@@ -843,7 +917,7 @@ pub fn everything_page_render(chapters: List(Chapter)) -> String {
       body: [
         theme_picker_script(),
         html_script(
-          "js/highlight/highlight-gleam.js",
+          prefix <> "js/highlight/highlight-gleam.js",
           ScriptOptions(module: True, defer: True),
           [],
         ),
@@ -1049,7 +1123,7 @@ pub fn render_page_html(page config: PageConfig) -> Html {
         html_script(
           "https://plausible.io/js/script.js",
           ScriptOptions(defer: True, module: False),
-          [#("data-domain", "tour.gleam.run")],
+          [#("data-domain", "olivier.amacker.dev")],
         ),
         ..config.scripts.head
       ],

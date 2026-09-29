@@ -1,4 +1,4 @@
-import CodeFlask from "https://cdn.jsdelivr.net/npm/codeflask@1.4.1/+esm";
+import CodeFlask from "./js/codeflask.js";
 globalThis.CodeFlask = CodeFlask;
 
 const output = document.querySelector("#output");
@@ -92,7 +92,7 @@ function debounce(fn, delay) {
 // this first time it is as the worker is initialising.
 let workerWorking = true;
 let queuedWork = undefined;
-const worker = new Worker("/worker.js", { type: "module" });
+const worker = new Worker(window.__TOUR_PREFIX__ + "worker.js", { type: "module" });
 
 function sendToWorker(code) {
   if (workerWorking) {
@@ -104,8 +104,20 @@ function sendToWorker(code) {
 }
 
 worker.onmessage = (event) => {
-  // Handle the result of the compilation and execution
   const result = event.data;
+  
+  // Handle the initial ready signal from worker
+  if (Object.keys(result).length === 0) {
+    workerWorking = false;
+    if (queuedWork) {
+      const code = queuedWork;
+      queuedWork = undefined;
+      sendToWorker(code);
+    }
+    return;
+  }
+  
+  // Handle the result of the compilation and execution
   clearOutput();
   if (result.log) appendOutput(result.log, "log");
   if (result.error) appendOutput(result.error, "error");
@@ -115,8 +127,14 @@ worker.onmessage = (event) => {
 
   // Deal with any queued work
   workerWorking = false;
-  if (queuedWork) sendToWorker(queuedWork);
-  queuedWork = undefined;
+  if (queuedWork) {
+    const code = queuedWork;
+    queuedWork = undefined;
+    sendToWorker(code);
+  }
 };
 
 editor.onUpdate(debounce((code) => sendToWorker(code), 200));
+
+// Trigger initial compilation
+sendToWorker(initialCode);

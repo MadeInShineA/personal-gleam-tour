@@ -25,6 +25,7 @@
             gleam
             beamPackages.erlang
             beamPackages.rebar3
+            nodejs
           ];
         };
       }
